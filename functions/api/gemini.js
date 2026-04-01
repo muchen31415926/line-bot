@@ -16,6 +16,9 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
 
+// 內存儲存對話歷史（不持久）
+let conversationHistory = [];
+
 const router = express.Router();
 
 router.get("/", (req, res) => {
@@ -74,6 +77,18 @@ router.post("/", line.middleware(config), async (req, res) => {
 // Gemini 回應函式
 // ======================
 async function getAIResponse(userMessage) {
+  // 準備 contents，包含歷史 + 新訊息
+  const contents = [
+    ...conversationHistory.map((msg) => ({
+      role: msg.role,
+      parts: [{ text: msg.text }],
+    })),
+    {
+      role: "user",
+      parts: [{ text: userMessage }],
+    },
+  ];
+
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
 
@@ -85,12 +100,7 @@ async function getAIResponse(userMessage) {
 - 像朋友聊天
 - 如果需要最新資訊，可以使用搜尋功能`,
 
-    contents: [
-      {
-        role: "user",
-        parts: [{ text: userMessage }],
-      },
-    ],
+    contents,
 
     // 搜尋工具（對應 web_search）
     tools: [
@@ -106,7 +116,18 @@ async function getAIResponse(userMessage) {
     },
   });
 
-  return response.text;
+  const aiText = response.text;
+
+  // 更新對話歷史
+  conversationHistory.push({ role: "user", text: userMessage });
+  conversationHistory.push({ role: "model", text: aiText });
+
+  // 限制為20輪（40條訊息）
+  if (conversationHistory.length > 40) {
+    conversationHistory.splice(0, conversationHistory.length - 40);
+  }
+
+  return aiText;
 }
 
 export default router;
