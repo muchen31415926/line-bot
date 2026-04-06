@@ -4,15 +4,15 @@ import indexRouter from "./api/index.js";
 import linebotDemoRouter from "./api/linebot_demo.js";
 import lineMbti from "./api/line_mbti.js";
 import geminiRouter from "./api/gemini.js";
-import testRouter from "./api/ai_test.js";
+import lineBotRouter from "./api/linebot_file.js";
 
 const app = express();
-//https://songless-kingston-unsympathetically.ngrok-free.dev/lineai-a74a2/asia-east1/api/gemini
+//https://songless-kingston-unsympathetically.ngrok-free.dev/lineai-a74a2/asia-east1/api/linefilebot
 app.use("/", indexRouter);
 app.use("/line_demo", linebotDemoRouter);
 app.use("/line_mbti", lineMbti);
 app.use("/gemini", geminiRouter);
-app.use("/test", testRouter);
+app.use("/linefilebot", lineBotRouter);
 
 export const api = onRequest(
   {
