@@ -57,79 +57,98 @@ router.post("/", middleware(config), async (req, res) => {
 });
 
 async function handleFileMessage(messageId) {
-  let data = await uploadFile(messageId);
-  data.downloadURL = getPublicUrl(data.fileName);
-
+  let data = await detectFileType(messageId);
+  data = createFileRef(data);
+  data = await uploadFile(data);
+  data = getPublicUrl(data);
   return data;
 }
 
-async function uploadFile(messageId) {
-  // ① 先拿 stream（只為了判斷格式）
+async function uploadFile(data) {
+  // get readable stream for file upload
+  const uploadStream = await blobClient.getMessageContent(data.messageId);
+
+  // get writable stream for GCS upload
+  const writeStream = data.fileRef.createWriteStream({
+    metadata: {
+      contentType: data.mime,
+    },
+  });
+
+  // chunk( buffer ) -> writable buffer -> GCS
+  // count file size and upload
+  let totalFileSize = 0;
+  for await (const chunk of uploadStream) {
+    totalFileSize += chunk.length;
+    writeStream.write(chunk);
+  }
+
+  // all chunks written to writable stream
+  writeStream.end();
+
+  // wait for upload to complete
+  await new Promise((resolve, reject) => {
+    writeStream.on("finish", resolve);
+    writeStream.on("error", reject);
+  });
+
+  // set file to public
+  await data.fileRef.makePublic();
+  console.log(`${data.fileName} is now public`);
+
+  data.fileSize = totalFileSize;
+
+  return { ...data, fileSize: totalFileSize };
+}
+
+async function detectFileType(messageId) {
+  // get readable steam for detecting file type
   const detectionStream = await blobClient.getMessageContent(messageId);
 
   if (!detectionStream) {
     throw new Error("No stream available");
   }
 
+  // get only the first 4.1 KB of data
   const headChunks = [];
   let headSize = 0;
-  const MAX_HEAD = 4100;
+  const MAX_DETECTION_BYTES = 4100;
 
   for await (const chunk of detectionStream) {
     headChunks.push(chunk);
     headSize += chunk.length;
 
-    if (headSize >= MAX_HEAD) break;
+    if (headSize >= MAX_DETECTION_BYTES) break;
   }
 
   const headBuffer = Buffer.concat(headChunks);
   const type = await fileTypeFromBuffer(headBuffer);
 
   if (!type || !type.ext) {
-    throw new Error("Cannot determine file type");
+    throw new Error("Can not determine file type");
   }
-
-  const ext = `.${type.ext}`;
-  const mime = type.mime;
-
-  const fileName = `${messageId}${ext}`;
-  const file = bucket.file(fileName);
-
-  // ② 再拿一次 stream（真正寫入）
-  const uploadStream = await blobClient.getMessageContent(messageId);
-  const writeStream = file.createWriteStream({
-    metadata: {
-      contentType: mime,
-    },
-  });
-
-  let totalFileSize = 0;
-
-  for await (const chunk of uploadStream) {
-    totalFileSize += chunk.length;
-    writeStream.write(chunk);
-  }
-
-  writeStream.end();
-
-  await new Promise((resolve, reject) => {
-    writeStream.on("finish", resolve);
-    writeStream.on("error", reject);
-  });
-
-  await file.makePublic();
-
-  console.log(`${fileName} uploaded`);
 
   return {
-    fileName,
-    fileSize: totalFileSize,
+    messageId,
+    mime: type.mime,
+    ext: type.ext,
   };
 }
 
-// 取得永久 URL
-function getPublicUrl(fileName) {
-  return `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+function createFileRef(data) {
+  const fileName = `${data.messageId}.${data.ext}`;
+  const fileRef = bucket.file(fileName);
+
+  return {
+    ...data,
+    fileName,
+    fileRef,
+  };
+}
+
+function getPublicUrl(data) {
+  data.downloadURL = `https://storage.googleapis.com/${bucket.name}/${data.fileName}`;
+  return { ...data, downloadURL: data.downloadURL };
 }
 
 export default router;
