@@ -64,32 +64,49 @@ async function handleFileMessage(messageId) {
 }
 
 async function uploadFile(messageId) {
-  // get readable stream
-  const stream = await blobClient.getMessageContent(messageId);
+  // ① 先拿 stream（只為了判斷格式）
+  const detectionStream = await blobClient.getMessageContent(messageId);
 
-  if (!stream) {
+  if (!detectionStream) {
     throw new Error("No stream available");
   }
-
-  const file = bucket.file(messageId); // 先不用副檔名
-
-  const writeStream = file.createWriteStream();
-
-  let totalFileSize = 0;
 
   const headChunks = [];
   let headSize = 0;
   const MAX_HEAD = 4100;
 
-  for await (const chunk of stream) {
+  for await (const chunk of detectionStream) {
+    headChunks.push(chunk);
+    headSize += chunk.length;
+
+    if (headSize >= MAX_HEAD) break;
+  }
+
+  const headBuffer = Buffer.concat(headChunks);
+  const type = await fileTypeFromBuffer(headBuffer);
+
+  if (!type || !type.ext) {
+    throw new Error("Cannot determine file type");
+  }
+
+  const ext = `.${type.ext}`;
+  const mime = type.mime;
+
+  const fileName = `${messageId}${ext}`;
+  const file = bucket.file(fileName);
+
+  // ② 再拿一次 stream（真正寫入）
+  const uploadStream = await blobClient.getMessageContent(messageId);
+  const writeStream = file.createWriteStream({
+    metadata: {
+      contentType: mime,
+    },
+  });
+
+  let totalFileSize = 0;
+
+  for await (const chunk of uploadStream) {
     totalFileSize += chunk.length;
-
-    // 收前 4KB 判斷格式
-    if (headSize < MAX_HEAD) {
-      headChunks.push(chunk);
-      headSize += chunk.length;
-    }
-
     writeStream.write(chunk);
   }
 
@@ -100,30 +117,12 @@ async function uploadFile(messageId) {
     writeStream.on("error", reject);
   });
 
-  // 🔍 判斷檔案格式
-  const headBuffer = Buffer.concat(headChunks);
-  const type = await fileTypeFromBuffer(headBuffer);
+  await file.makePublic();
 
-  const ext = type?.ext ? `.${type.ext}` : "";
-  const mime = type?.mime || "application/octet-stream";
-
-  const newFileName = `${messageId}${ext}`;
-
-  // 🔁 rename + 設 metadata
-  await file.move(newFileName);
-
-  const newFile = bucket.file(newFileName);
-
-  await newFile.setMetadata({
-    contentType: mime,
-  });
-
-  await newFile.makePublic();
-
-  console.log(`${newFileName} uploaded`);
+  console.log(`${fileName} uploaded`);
 
   return {
-    fileName: newFileName,
+    fileName,
     fileSize: totalFileSize,
   };
 }
