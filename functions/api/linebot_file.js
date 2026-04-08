@@ -35,7 +35,8 @@ router.post("/", middleware(config), async (req, res) => {
         messageType.includes(event.message.type)
       ) {
         const messageId = event.message.id;
-        let data = await handleFileMessage(messageId);
+        let data = { messageId };
+        data = await handleFileMessage(data);
 
         await client.replyMessage({
           replyToken: event.replyToken,
@@ -56,82 +57,50 @@ router.post("/", middleware(config), async (req, res) => {
   }
 });
 
-async function handleFileMessage(messageId) {
-  let data = await detectFileType(messageId);
+async function handleFileMessage(data) {
+  data = await getLineMessageBuffer(data);
+  data = await detectFileType(data);
+  data = getFileSize(data);
   data = createFileRef(data);
   data = await uploadFile(data);
+  data = await publicUrl(data);
   data = getPublicUrl(data);
   return data;
 }
 
-async function uploadFile(data) {
-  // get readable stream for file upload
-  const uploadStream = await blobClient.getMessageContent(data.messageId);
+async function getLineMessageBuffer(data) {
+  // get readable stream
+  const Stream = await blobClient.getMessageContent(data.messageId);
 
-  // get writable stream for GCS upload
-  const writeStream = data.fileRef.createWriteStream({
-    metadata: {
-      contentType: data.mime,
-    },
-  });
-
-  // chunk( buffer ) -> writable buffer -> GCS
-  // count file size and upload
-  let totalFileSize = 0;
-  for await (const chunk of uploadStream) {
-    totalFileSize += chunk.length;
-    writeStream.write(chunk);
+  //read the stream into a buffer
+  let chunks = [];
+  for await (const chunk of Stream) {
+    chunks.push(chunk);
   }
-
-  // all chunks written to writable stream
-  writeStream.end();
-
-  // wait for upload to complete
-  await new Promise((resolve, reject) => {
-    writeStream.on("finish", resolve);
-    writeStream.on("error", reject);
-  });
-
-  // set file to public
-  await data.fileRef.makePublic();
-  console.log(`${data.fileName} is now public`);
-
-  data.fileSize = totalFileSize;
-
-  return { ...data, fileSize: totalFileSize };
+  return {
+    ...data,
+    buffer: Buffer.concat(chunks),
+  };
 }
 
-async function detectFileType(messageId) {
-  // get readable steam for detecting file type
-  const detectionStream = await blobClient.getMessageContent(messageId);
-
-  if (!detectionStream) {
-    throw new Error("No stream available");
-  }
-
-  // get only the first 4.1 KB of data
-  const headChunks = [];
-  let headSize = 0;
-  const MAX_DETECTION_BYTES = 4100;
-
-  for await (const chunk of detectionStream) {
-    headChunks.push(chunk);
-    headSize += chunk.length;
-
-    if (headSize >= MAX_DETECTION_BYTES) break;
-  }
-
-  const headBuffer = Buffer.concat(headChunks);
-  const type = await fileTypeFromBuffer(headBuffer);
+async function detectFileType(data) {
+  const type = await fileTypeFromBuffer(data.buffer);
 
   if (!type || !type.ext) {
     throw new Error("Can not determine file type");
   }
 
   return {
-    messageId,
+    ...data,
     mime: type.mime,
     ext: type.ext,
+  };
+}
+
+function getFileSize(data) {
+  return {
+    ...data,
+    fileSize: data.buffer.length,
   };
 }
 
@@ -144,6 +113,34 @@ function createFileRef(data) {
     fileName,
     fileRef,
   };
+}
+
+async function uploadFile(data) {
+  // get writable stream for GCS upload
+  const writeStream = data.fileRef.createWriteStream({
+    metadata: {
+      contentType: data.mime,
+    },
+  });
+
+  // chunk( buffer ) -> writable buffer -> GCS
+  // all chunks written to writable stream
+  writeStream.end(data.buffer);
+
+  // wait for upload to complete
+  await new Promise((resolve, reject) => {
+    writeStream.on("finish", resolve);
+    writeStream.on("error", reject);
+  });
+
+  return data;
+}
+
+async function publicUrl(data) {
+  // set file to public
+  await data.fileRef.makePublic();
+  console.log(`${data.fileName} is now public`);
+  return data;
 }
 
 function getPublicUrl(data) {
