@@ -63,7 +63,7 @@ async function handleFileMessage(data) {
   data = getFileSize(data);
   data = createFileRef(data);
   data = await uploadFile(data);
-  data = await publicUrl(data);
+  data = await setFilePublic(data);
   data = getPublicUrl(data);
   return data;
 }
@@ -136,7 +136,7 @@ async function uploadFile(data) {
   return data;
 }
 
-async function publicUrl(data) {
+async function setFilePublic(data) {
   // set file to public
   await data.fileRef.makePublic();
   console.log(`${data.fileName} is now public`);
@@ -144,8 +144,8 @@ async function publicUrl(data) {
 }
 
 function getPublicUrl(data) {
-  data.downloadURL = `https://storage.googleapis.com/${bucket.name}/${data.fileName}`;
-  return { ...data, downloadURL: data.downloadURL };
+  const downloadURL = `https://storage.googleapis.com/${bucket.name}/${data.fileName}`;
+  return { ...data, downloadURL };
 }
 
 export default router;
