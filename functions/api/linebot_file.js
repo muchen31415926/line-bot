@@ -34,8 +34,12 @@ router.post("/", middleware(config), async (req, res) => {
         event.type === "message" &&
         messageType.includes(event.message.type)
       ) {
+        const fileName =
+          event.message.type === "file" ? event.message.fileName : null;
+        const sourcedata = getSourseData(event.source);
         const messageId = event.message.id;
-        let data = { messageId };
+
+        let data = { messageId, fileName, ...sourcedata };
         data = await handleFileMessage(data);
 
         await client.replyMessage({
@@ -105,12 +109,17 @@ function getFileSize(data) {
 }
 
 function createFileRef(data) {
-  const fileName = `${data.messageId}.${data.ext}`;
-  const fileRef = bucket.file(fileName);
+  let fileName;
+  data.fileName
+    ? (fileName = data.fileName)
+    : (fileName = `${data.messageId}.${data.ext}`);
+  const filePath = `${data.sourceType}${data.sourceId}/${fileName}`;
+  const fileRef = bucket.file(filePath);
 
   return {
     ...data,
     fileName,
+    filePath,
     fileRef,
   };
 }
@@ -139,13 +148,20 @@ async function uploadFile(data) {
 async function setFilePublic(data) {
   // set file to public
   await data.fileRef.makePublic();
-  console.log(`${data.fileName} is now public`);
   return data;
 }
 
 function getPublicUrl(data) {
-  const downloadURL = `https://storage.googleapis.com/${bucket.name}/${data.fileName}`;
+  const downloadURL = `https://storage.googleapis.com/${bucket.name}/${data.filePath}`;
   return { ...data, downloadURL };
+}
+
+function getSourseData(source) {
+  let idKey = `${source.type}Id`;
+  return {
+    sourceType: source.type,
+    sourceId: source[idKey],
+  };
 }
 
 export default router;
