@@ -1,16 +1,21 @@
 import { initializeApp } from "firebase-admin/app";
 import { getStorage } from "firebase-admin/storage";
+import { createClient } from "@supabase/supabase-js";
 import express from "express";
-import dotenv from "dotenv";
+
 import { messagingApi, middleware } from "@line/bot-sdk";
 import { fileTypeFromBuffer } from "file-type";
-
-dotenv.config();
 
 const config = {
   channelSecret: process.env.LINE_SECRET_ROB_V1,
   channelAccessToken: process.env.LINE_ACCESS_TOKEN_ROB_V1,
 };
+
+// Create a single supabase client for interacting with your database
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY,
+);
 
 const client = new messagingApi.MessagingApiClient(config);
 const blobClient = new messagingApi.MessagingApiBlobClient(config);
@@ -27,19 +32,19 @@ router.get("/", (req, res) => {
 router.post("/", middleware(config), async (req, res) => {
   try {
     const events = req.body.events || [];
-    const messageType = ["image", "video", "audio", "file"];
+    const allowedMessageTypes = ["image", "video", "audio", "file"];
 
     for (const event of events) {
       if (
         event.type === "message" &&
-        messageType.includes(event.message.type)
+        allowedMessageTypes.includes(event.message.type)
       ) {
-        const fileName =
-          event.message.type === "file" ? event.message.fileName : null;
-        const sourcedata = getSourseData(event.source);
+        const messageType = event.message.type;
+        const fileName = messageType === "file" ? event.message.fileName : null;
+        const sourceData = getSourceData(event.source);
         const messageId = event.message.id;
 
-        let data = { messageId, fileName, ...sourcedata };
+        let data = { messageId, fileName, messageType, ...sourceData };
         data = await handleFileMessage(data);
 
         await client.replyMessage({
@@ -69,6 +74,7 @@ async function handleFileMessage(data) {
   data = await uploadFile(data);
   data = await setFilePublic(data);
   data = getPublicUrl(data);
+  data = await saveInDB(data);
   return data;
 }
 
@@ -142,7 +148,9 @@ async function uploadFile(data) {
     writeStream.on("error", reject);
   });
 
-  return data;
+  // remove buffer from data
+  const { buffer, ...rest } = data;
+  return rest;
 }
 
 async function setFilePublic(data) {
@@ -156,12 +164,27 @@ function getPublicUrl(data) {
   return { ...data, downloadURL };
 }
 
-function getSourseData(source) {
+function getSourceData(source) {
   let idKey = `${source.type}Id`;
   return {
     sourceType: source.type,
     sourceId: source[idKey],
   };
+}
+
+async function saveInDB(data) {
+  await supabase.from("line_files").insert({
+    message_id: data.messageId,
+    message_type: data.messageType,
+    source_type: data.sourceType,
+    source_id: data.sourceId,
+    storage_path: data.filePath,
+    content_type: data.mime,
+    file_size: data.fileSize,
+    file_name: data.fileName,
+    download_url: data.downloadURL,
+  });
+  return data;
 }
 
 export default router;
