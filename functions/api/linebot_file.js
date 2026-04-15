@@ -35,7 +35,12 @@ router.post("/", middleware(config), async (req, res) => {
     const allowedMessageTypes = ["image", "video", "audio", "file"];
 
     for (const event of events) {
-      if (
+      if (event.type === "text") {
+        const text = event.message.text.trim();
+        if (text.startsWith("/")) {
+          await handleCommand(event, text);
+        }
+      } else if (
         event.type === "message" &&
         allowedMessageTypes.includes(event.message.type)
       ) {
@@ -185,6 +190,67 @@ async function saveInDB(data) {
     download_url: data.downloadURL,
   });
   return data;
+}
+
+async function handleCommand(event, text) {
+  let helpText = `
+  Commands:
+  /help - Show help
+  /find <keyword> - Search data
+  `.trim();
+
+  try {
+    const command = text.toLowerCase();
+
+    switch (command) {
+      case "/help":
+        await client.replyMessage({
+          replyToken: event.replyToken,
+          messages: [
+            {
+              type: "text",
+              text: helpText,
+            },
+          ],
+        });
+        break;
+
+      case "find":
+        await client.replyMessage({
+          replyToken: event.replyToken,
+          messages: [
+            {
+              type: "text",
+              text: "這是尋找訊息",
+            },
+          ],
+        });
+        break;
+
+      default:
+        await client.replyMessage({
+          replyToken: event.replyToken,
+          messages: [
+            {
+              type: "text",
+              text: `未知的指令: ${command}\n${helpText}`,
+            },
+          ],
+        });
+        break;
+    }
+  } catch (error) {
+    console.error("處理指令錯誤:", error);
+    await client.replyMessage({
+      replyToken: event.replyToken,
+      messages: [
+        {
+          type: "text",
+          text: "處理指令時發生錯誤",
+        },
+      ],
+    });
+  }
 }
 
 export default router;
