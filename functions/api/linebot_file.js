@@ -35,7 +35,7 @@ router.post("/", middleware(config), async (req, res) => {
     const allowedMessageTypes = ["image", "video", "audio", "file"];
 
     for (const event of events) {
-      if (event.type === "text") {
+      if (event.type === "message" && event.message.type === "text") {
         const text = event.message.text.trim();
         if (text.startsWith("/")) {
           await handleCommand(event, text);
@@ -215,7 +215,7 @@ async function handleCommand(event, text) {
         });
         break;
 
-      case "find":
+      case "/find":
         await client.replyMessage({
           replyToken: event.replyToken,
           messages: [
