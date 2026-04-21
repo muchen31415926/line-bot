@@ -14,7 +14,7 @@ const config = {
 // Create a single supabase client for interacting with your database
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_KEY,
+  process.env.SUPABASE_SECRET_KEY,
 );
 
 const client = new messagingApi.MessagingApiClient(config);
@@ -178,7 +178,7 @@ function getSourceData(source) {
 }
 
 async function saveInDB(data) {
-  await supabase.from("line_files").insert({
+  const { error } = await supabase.from("line_files").insert({
     message_id: data.messageId,
     message_type: data.messageType,
     source_type: data.sourceType,
@@ -189,18 +189,23 @@ async function saveInDB(data) {
     file_name: data.fileName,
     download_url: data.downloadURL,
   });
+
+  if (error) {
+    console.error("database insert error:", error);
+    throw error;
+  }
   return data;
 }
 
 async function handleCommand(event, text) {
-  let helpText = `
+  const helpText = `
   Commands:
   /help - Show help
   /find <keyword> - Search data
   `.trim();
 
   try {
-    const command = text.toLowerCase();
+    const [command, params] = text.toLowerCase().split(" ");
 
     switch (command) {
       case "/help":
@@ -209,19 +214,31 @@ async function handleCommand(event, text) {
           messages: [
             {
               type: "text",
-              text: helpText,
+              text: `${helpText}`,
             },
           ],
         });
         break;
 
       case "/find":
+        const queryResult = await handleFindCommand(params);
+        const findText = queryResult
+          .map((row, i) =>
+            [
+              `${i + 1}. `,
+              `${row.file_name}`,
+              `大小: ${row.file_size} bytes`,
+              `類型: ${row.content_type}`,
+              `下載連結: ${row.download_url}`,
+            ].join("\n"),
+          )
+          .join("\n\n");
         await client.replyMessage({
           replyToken: event.replyToken,
           messages: [
             {
               type: "text",
-              text: "這是尋找訊息",
+              text: `${findText}`,
             },
           ],
         });
@@ -251,6 +268,20 @@ async function handleCommand(event, text) {
       ],
     });
   }
+}
+
+async function handleFindCommand(params) {
+  const { data, error } = await supabase
+    .from("line_files")
+    .select()
+    .ilike("file_name", `%${params}%`);
+
+  if (error) {
+    console.error("database query error:", error);
+    throw error;
+  }
+
+  return data;
 }
 
 export default router;
