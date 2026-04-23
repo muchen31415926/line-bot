@@ -29,21 +29,24 @@ router.get("/", (req, res) => {
 });
 
 // webhook
+const ALLOWED_UPLOAD_GCS_TYPES = ["image", "video", "audio", "file"];
 router.post("/", middleware(config), async (req, res) => {
   try {
     const events = req.body.events || [];
-    const allowedMessageTypes = ["image", "video", "audio", "file"];
-
     for (const event of events) {
-      if (event.type === "message" && event.message.type === "text") {
-        const text = event.message.text.trim();
-        if (text.startsWith("/")) {
-          await handleCommand(event, text);
+      if (event.type !== "message") continue;
+
+      if (event.message.type === "text") {
+        const sourceData = getSourceData(event.source);
+        const userText = event.message.text.trim();
+        if (userText.startsWith("/")) {
+          await handleCommand(event, userText, sourceData);
+          continue;
         }
-      } else if (
-        event.type === "message" &&
-        allowedMessageTypes.includes(event.message.type)
-      ) {
+        continue;
+      }
+
+      if (ALLOWED_UPLOAD_GCS_TYPES.includes(event.message.type)) {
         const messageType = event.message.type;
         const fileName = messageType === "file" ? event.message.fileName : null;
         const sourceData = getSourceData(event.source);
@@ -52,18 +55,11 @@ router.post("/", middleware(config), async (req, res) => {
         let data = { messageId, fileName, messageType, ...sourceData };
         data = await handleFileMessage(data);
 
-        await client.replyMessage({
-          replyToken: event.replyToken,
-          messages: [
-            {
-              type: "text",
-              text: `檔名: ${data.fileName}\n檔案大小: ${data.fileSize} bytes\n${data.downloadURL}`,
-            },
-          ],
-        });
+        const replyText = `檔名: ${data.fileName}\n檔案大小: ${formatSize(data.fileSize)}\n下載網址: ${data.downloadURL}`;
+        await replyMessage(event.replyToken, replyText);
+        continue;
       }
     }
-
     res.status(200).send("OK");
   } catch (error) {
     console.error("處理 webhook 錯誤:", error);
@@ -197,7 +193,7 @@ async function saveInDB(data) {
   return data;
 }
 
-async function handleCommand(event, text) {
+async function handleCommand(event, userText, sourceData) {
   const helpText = `
   Commands:
   /help - Show help
@@ -205,76 +201,63 @@ async function handleCommand(event, text) {
   `.trim();
 
   try {
-    const [command, params] = text.toLowerCase().split(" ");
+    const [command, params] = userText.split(" ");
 
-    switch (command) {
-      case "/help":
-        await client.replyMessage({
-          replyToken: event.replyToken,
-          messages: [
-            {
-              type: "text",
-              text: `${helpText}`,
-            },
-          ],
-        });
+    switch (command.toLowerCase()) {
+      case "/help": {
+        const replyText = helpText;
+        await replyMessage(event.replyToken, replyText);
         break;
+      }
 
-      case "/find":
-        const queryResult = await handleFindCommand(params);
-        const findText = queryResult
+      case "/find": {
+        if (!params) {
+          const replyText = `未提供搜尋關鍵字`;
+          await replyMessage(event.replyToken, replyText);
+          break;
+        }
+
+        const queryResult = await handleFindCommand(params, sourceData);
+
+        if (queryResult.length === 0) {
+          const replyText = `找不到相關資料: ${params}`;
+          await replyMessage(event.replyToken, replyText);
+          break;
+        }
+
+        const replyText = queryResult
           .map((row, i) =>
             [
-              `${i + 1}. `,
-              `${row.file_name}`,
-              `大小: ${row.file_size} bytes`,
+              `${i + 1}. ${row.file_name}`,
+              `大小: ${formatSize(row.file_size)}`,
               `類型: ${row.content_type}`,
-              `下載連結: ${row.download_url}`,
+              `下載: ${row.download_url}`,
             ].join("\n"),
           )
           .join("\n\n");
-        await client.replyMessage({
-          replyToken: event.replyToken,
-          messages: [
-            {
-              type: "text",
-              text: `${findText}`,
-            },
-          ],
-        });
+        await replyMessage(event.replyToken, replyText);
         break;
+      }
 
-      default:
-        await client.replyMessage({
-          replyToken: event.replyToken,
-          messages: [
-            {
-              type: "text",
-              text: `未知的指令: ${command}\n${helpText}`,
-            },
-          ],
-        });
+      default: {
+        const replyText = `未知的指令: ${command}\n\n${helpText}`;
+        await replyMessage(event.replyToken, replyText);
         break;
+      }
     }
   } catch (error) {
-    console.error("處理指令錯誤:", error);
-    await client.replyMessage({
-      replyToken: event.replyToken,
-      messages: [
-        {
-          type: "text",
-          text: "處理指令時發生錯誤",
-        },
-      ],
-    });
+    const replyText = "處理指令時發生錯誤";
+    console.error(`handleCommand error: ${error}`);
+    await replyMessage(event.replyToken, replyText);
   }
 }
 
-async function handleFindCommand(params) {
+async function handleFindCommand(params, sourceData) {
   const { data, error } = await supabase
     .from("line_files")
     .select()
-    .ilike("file_name", `%${params}%`);
+    .ilike("file_name", `%${params}%`)
+    .eq("source_id", sourceData.sourceId);
 
   if (error) {
     console.error("database query error:", error);
@@ -282,6 +265,24 @@ async function handleFindCommand(params) {
   }
 
   return data;
+}
+
+function formatSize(bytes) {
+  if (bytes < 1000) return `${bytes} B`;
+  if (bytes < 1000000) return `${parseFloat((bytes / 1000).toFixed(1))} KB`;
+  return `${parseFloat((bytes / 1000000).toFixed(1))} MB`;
+}
+
+async function replyMessage(replyToken, text) {
+  return client.replyMessage({
+    replyToken: replyToken,
+    messages: [
+      {
+        type: "text",
+        text: text,
+      },
+    ],
+  });
 }
 
 export default router;
