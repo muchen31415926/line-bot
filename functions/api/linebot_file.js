@@ -1,12 +1,13 @@
+import express from "express";
+import { fileTypeFromBuffer } from "file-type";
+
 import { initializeApp } from "firebase-admin/app";
 import { getStorage } from "firebase-admin/storage";
 import { createClient } from "@supabase/supabase-js";
-import express from "express";
-
 import { messagingApi, middleware } from "@line/bot-sdk";
-import { fileTypeFromBuffer } from "file-type";
+import { GoogleGenAI } from "@google/genai";
 
-const config = {
+const lineConfig = {
   channelSecret: process.env.LINE_SECRET_ROB_V1,
   channelAccessToken: process.env.LINE_ACCESS_TOKEN_ROB_V1,
 };
@@ -17,8 +18,9 @@ const supabase = createClient(
   process.env.SUPABASE_SECRET_KEY,
 );
 
-const client = new messagingApi.MessagingApiClient(config);
-const blobClient = new messagingApi.MessagingApiBlobClient(config);
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const client = new messagingApi.MessagingApiClient(lineConfig);
+const blobClient = new messagingApi.MessagingApiBlobClient(lineConfig);
 const router = express.Router();
 
 initializeApp();
@@ -30,7 +32,7 @@ router.get("/", (req, res) => {
 
 // webhook
 const ALLOWED_UPLOAD_GCS_TYPES = ["image", "video", "audio", "file"];
-router.post("/", middleware(config), async (req, res) => {
+router.post("/", middleware(lineConfig), async (req, res) => {
   try {
     const events = req.body.events || [];
     for (const event of events) {
@@ -75,6 +77,7 @@ async function handleFileMessage(data) {
   data = await uploadFile(data);
   data = await setFilePublic(data);
   data = getPublicUrl(data);
+  data = await getEmbedding(data);
   data = await saveInDB(data);
   return data;
 }
@@ -173,6 +176,15 @@ function getSourceData(source) {
   };
 }
 
+async function getEmbedding(data) {
+  const res = await ai.models.embedContent({
+    model: "gemini-embedding-001",
+    contents: data.fileName,
+    config: { outputDimensionality: 768 },
+  });
+  return { ...data, embedding: res.embeddings[0].values };
+}
+
 async function saveInDB(data) {
   const { error } = await supabase.from("line_files").insert({
     message_id: data.messageId,
@@ -183,6 +195,7 @@ async function saveInDB(data) {
     content_type: data.mime,
     file_size: data.fileSize,
     file_name: data.fileName,
+    embedding: data.embedding,
     download_url: data.downloadURL,
   });
 
