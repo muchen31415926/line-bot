@@ -1,6 +1,7 @@
+import path from "path";
+
 import express from "express";
 import { fileTypeFromBuffer } from "file-type";
-
 import { initializeApp } from "firebase-admin/app";
 import { getStorage } from "firebase-admin/storage";
 import { createClient } from "@supabase/supabase-js";
@@ -50,11 +51,17 @@ router.post("/", middleware(lineConfig), async (req, res) => {
 
       if (ALLOWED_UPLOAD_GCS_TYPES.includes(event.message.type)) {
         const messageType = event.message.type;
-        const fileName = messageType === "file" ? event.message.fileName : null;
+        const originalFileName =
+          messageType === "file" ? event.message.fileName : null;
         const sourceData = getSourceData(event.source);
         const messageId = event.message.id;
 
-        let data = { messageId, fileName, messageType, ...sourceData };
+        let data = {
+          messageId,
+          originalFileName,
+          messageType,
+          ...sourceData,
+        };
         data = await handleFileMessage(data);
 
         const replyText = `檔名: ${data.fileName}\n檔案大小: ${formatSize(data.fileSize)}\n下載網址: ${data.downloadURL}`;
@@ -73,6 +80,8 @@ async function handleFileMessage(data) {
   data = await getLineMessageBuffer(data);
   data = await detectFileType(data);
   data = getFileSize(data);
+  data = createFileName(data);
+  data = createStoragePath(data);
   data = createFileRef(data);
   data = await uploadFile(data);
   data = await setFilePublic(data);
@@ -84,30 +93,17 @@ async function handleFileMessage(data) {
 
 async function getLineMessageBuffer(data) {
   // get readable stream
-  const Stream = await blobClient.getMessageContent(data.messageId);
+  const stream = await blobClient.getMessageContent(data.messageId);
 
   //read the stream into a buffer
-  let chunks = [];
-  for await (const chunk of Stream) {
+  const chunks = [];
+  for await (const chunk of stream) {
     chunks.push(chunk);
   }
+
   return {
     ...data,
     buffer: Buffer.concat(chunks),
-  };
-}
-
-async function detectFileType(data) {
-  const type = await fileTypeFromBuffer(data.buffer);
-
-  if (!type || !type.ext) {
-    throw new Error("Can not determine file type");
-  }
-
-  return {
-    ...data,
-    mime: type.mime,
-    ext: type.ext,
   };
 }
 
@@ -118,20 +114,32 @@ function getFileSize(data) {
   };
 }
 
-function createFileRef(data) {
-  let fileName;
-  data.fileName
-    ? (fileName = data.fileName)
-    : (fileName = `${data.messageId}.${data.ext}`);
-  const filePath = `${data.sourceType}${data.sourceId}/${fileName}`;
-  const fileRef = bucket.file(filePath);
+function createFileName(data) {
+  const fileName = data.originalFileName
+    ? path.parse(data.originalFileName).name
+    : data.messageId;
 
-  return {
-    ...data,
-    fileName,
-    filePath,
-    fileRef,
-  };
+  return { ...data, fileName };
+}
+
+async function detectFileType(data) {
+  const type = await fileTypeFromBuffer(data.buffer);
+
+  if (!type || !type.ext) {
+    throw new Error("Can not determine file type");
+  }
+
+  return { ...data, mime: type.mime, ext: type.ext };
+}
+
+function createStoragePath(data) {
+  const storagePath = `${data.sourceType}${data.sourceId}/${data.fileName}.${data.ext}`;
+  return { ...data, storagePath };
+}
+
+function createFileRef(data) {
+  const fileRef = bucket.file(data.storagePath);
+  return { ...data, fileRef };
 }
 
 async function uploadFile(data) {
@@ -164,7 +172,7 @@ async function setFilePublic(data) {
 }
 
 function getPublicUrl(data) {
-  const downloadURL = `https://storage.googleapis.com/${bucket.name}/${data.filePath}`;
+  const downloadURL = `https://storage.googleapis.com/${bucket.name}/${data.storagePath}`;
   return { ...data, downloadURL };
 }
 
@@ -186,23 +194,27 @@ async function getEmbedding(data) {
 }
 
 async function saveInDB(data) {
-  const { error } = await supabase.from("line_files").insert({
+  const row = {
     message_id: data.messageId,
     message_type: data.messageType,
     source_type: data.sourceType,
     source_id: data.sourceId,
-    storage_path: data.filePath,
+    storage_path: data.storagePath,
     content_type: data.mime,
     file_size: data.fileSize,
     file_name: data.fileName,
+    extension: data.ext,
     embedding: data.embedding,
     download_url: data.downloadURL,
-  });
+  };
+
+  const { error } = await supabase.from("line_files").insert(row);
 
   if (error) {
     console.error("database insert error:", error);
     throw error;
   }
+
   return data;
 }
 
