@@ -4,20 +4,21 @@ import indexRouter from "./api/index.js";
 import linebotDemoRouter from "./api/linebot_demo.js";
 import lineMbti from "./api/line_mbti.js";
 import geminiRouter from "./api/gemini.js";
-import lineBotRouter from "./api/linebot_file.js";
+import lineFileAssistant from "./api/line_file_assistant/app.js";
 
 const app = express();
-//https://songless-kingston-unsympathetically.ngrok-free.dev/lineai-a74a2/asia-east1/api/linefilebot
+
+//https://songless-kingston-unsympathetically.ngrok-free.dev/lineai-a74a2/asia-east1/api/line_file_assistant
 app.use("/", indexRouter);
 app.use("/line_demo", linebotDemoRouter);
 app.use("/line_mbti", lineMbti);
 app.use("/gemini", geminiRouter);
-app.use("/linefilebot", lineBotRouter);
+app.use("/line_file_assistant", lineFileAssistant);
 
 export const api = onRequest(
   {
-    region: "asia-east1", //設定地理位置為台灣
-    cors: false, //true 讓前端瀏覽器可以呼叫請寫
+    region: "asia-east1",
+    cors: false,
     minInstances: 0,
   },
   app,
