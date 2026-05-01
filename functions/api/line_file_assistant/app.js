@@ -1,16 +1,16 @@
 import express from "express";
 import { middleware } from "@line/bot-sdk";
 
-import { lineConfig } from "./config.js";
+import { lineConfig } from "./services.js";
 import { getSourceData, formatSize, replyMessage } from "./utils.js";
 import { runFilePipeline } from "./pipeline/file_pipeline.js";
 import { handleCommand } from "./handle_commad.js";
 
 const router = express.Router();
 
-const ALLOWED_UPLOAD_GCS_TYPES = ["image", "video", "audio", "file"];
 router.get("/", (req, res) => res.send("line file assistant test"));
 
+const ALLOWED_UPLOAD_GCS_TYPES = ["image", "video", "audio", "file"];
 router.post("/", middleware(lineConfig), async (req, res) => {
   try {
     const events = req.body.events || [];
@@ -18,9 +18,10 @@ router.post("/", middleware(lineConfig), async (req, res) => {
       if (event.type !== "message") continue;
 
       if (event.message.type === "text") {
-        const sourceData = getSourceData(event.source);
         const userText = event.message.text.trim();
         if (userText.startsWith("/")) {
+          const sourceData = getSourceData(event.source);
+
           await handleCommand(event, userText, sourceData);
           continue;
         }

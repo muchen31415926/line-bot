@@ -1,4 +1,4 @@
-import { lineClient } from "./config.js";
+import { lineClient } from "./services.js";
 
 export function getSourceData(source) {
   const idKey = `${source.type}Id`;

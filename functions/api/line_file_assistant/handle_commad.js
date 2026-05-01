@@ -1,4 +1,4 @@
-import { supabase, GenAI } from "./config.js";
+import { supabase, GenAI } from "./services.js";
 import { replyMessage, formatSize } from "./utils.js";
 
 const HELP_TEXT = `
