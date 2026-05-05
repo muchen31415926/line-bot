@@ -2,8 +2,6 @@ import express from "express";
 import dotenv from "dotenv";
 import * as line from "@line/bot-sdk";
 
-dotenv.config();
-
 const config = {
   channelSecret: process.env.LINE_SECRET_ROB_V1,
   channelAccessToken: process.env.LINE_ACCESS_TOKEN_ROB_V1,
