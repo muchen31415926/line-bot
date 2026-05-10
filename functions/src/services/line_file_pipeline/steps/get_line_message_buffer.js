@@ -1,4 +1,4 @@
-import { lineBlobClient } from "../../services.js";
+import { lineBlobClient } from "../../../lib/client.js";
 
 export async function getLineMessageBuffer(data) {
   // get readable stream

@@ -1,4 +1,4 @@
-import { supabase } from "../../services.js";
+import { supabase } from "../../../lib/client.js";
 
 export async function saveInDB(data) {
   const row = {
