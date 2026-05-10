@@ -4,6 +4,7 @@
   "type": "module",
   "imports": {
     "#templates": "./src/templates/index.js",
+    "#routes": "./src/routes/index.js",
     "#config": "./src/config/index.js",
     "#utils": "./src/utils/index.js",
     "#line_file_pipeline": "./src/services/line_file_pipeline/index.js",

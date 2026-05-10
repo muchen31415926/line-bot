@@ -4,12 +4,14 @@ import { middleware } from "@line/bot-sdk";
 import { Config } from "#config";
 import { handleWebhook } from "../controllers/line_cotroller.js";
 
-const router = express.Router();
+const lineFileAssistantRouter = express.Router();
 
-router.get("/", (req, res) => res.send("line file assistant test"));
+lineFileAssistantRouter.get("/", (req, res) =>
+  res.send("line file assistant test"),
+);
 
-router.post("/", middleware(Config.line), async (req, res) => {
+lineFileAssistantRouter.post("/", middleware(Config.line), async (req, res) => {
   await handleWebhook(req, res);
 });
 
-export default router;
+export { lineFileAssistantRouter };
