@@ -1,14 +1,7 @@
 import { formatSize } from "#utils";
 import { supabase, GenAI } from "../lib/client.js";
 import { replyText, replyFlex } from "./line_reply_service.js";
-import { buildBubble, buildCarousel } from "#templates";
-
-const HELP_TEXT = `
-  Commands:
-  /help - Show help
-  /find <keyword> - Search files by name
-  /match <keyword> - Search similar files
-  `.trim();
+import { buildHelpMenu, buildFileBubble, buildFileCarousel } from "#templates";
 
 export async function handleCommand(event, userText, sourceData) {
   try {
@@ -16,8 +9,8 @@ export async function handleCommand(event, userText, sourceData) {
 
     switch (command.toLowerCase()) {
       case "/help": {
-        const replymessage = HELP_TEXT;
-        await replyText(event.replyToken, replymessage);
+        const flexMessage = buildHelpMenu();
+        await replyFlex(event.replyToken, flexMessage);
         break;
       }
 
@@ -39,7 +32,7 @@ export async function handleCommand(event, userText, sourceData) {
 
         if (queryResult.length === 1) {
           const title = "🔍 搜尋結果";
-          const flexMessage = buildBubble(queryResult[0], title);
+          const flexMessage = buildFileBubble(queryResult[0], title);
           await replyFlex(event.replyToken, flexMessage);
           break;
         }
@@ -66,7 +59,7 @@ export async function handleCommand(event, userText, sourceData) {
           break;
         }
         const title = `⚖️ 相似度: `;
-        const flexMessage = buildCarousel(queryResult, title);
+        const flexMessage = buildFileCarousel(queryResult, title);
         await replyFlex(event.replyToken, flexMessage);
         break;
       }

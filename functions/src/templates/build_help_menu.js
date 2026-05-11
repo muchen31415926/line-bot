@@ -1,6 +1,4 @@
-import { formatSize } from "#utils";
-
-export function buildBubble(fileInfo, title) {
+export function buildHelpMenu() {
   return {
     type: "bubble",
     size: "mega",
@@ -15,11 +13,7 @@ export function buildBubble(fileInfo, title) {
           color: "#dcbc90",
           weight: "bold",
           size: "lg",
-          text: `${title}${
-            fileInfo.similarity != null
-              ? `${(fileInfo.similarity * 100).toFixed(2)}%`
-              : ""
-          }`,
+          text: "💡 指令列表：",
           offsetTop: "sm",
         },
       ],
@@ -43,15 +37,15 @@ export function buildBubble(fileInfo, title) {
           type: "box",
           layout: "baseline",
           spacing: "sm",
+          margin: "md",
           contents: [
             {
               type: "text",
-              text: fileInfo.file_name ?? fileInfo.fileName,
-              size: "xl",
-              wrap: false,
-              flex: 5,
-              weight: "bold",
+              text: "/help  - 顯示說明",
+              size: "sm",
               color: "#555451",
+              flex: 2,
+              weight: "bold",
               margin: "lg",
             },
           ],
@@ -64,21 +58,12 @@ export function buildBubble(fileInfo, title) {
           contents: [
             {
               type: "text",
-              text: "📦 大小：",
+              text: "/find  <關鍵字> - 搜尋檔案名稱",
               size: "sm",
               color: "#555451",
               flex: 2,
               weight: "bold",
               margin: "lg",
-            },
-            {
-              type: "text",
-              text: formatSize(fileInfo.file_size ?? fileInfo.fileSize),
-              size: "sm",
-              color: "#555451",
-              wrap: true,
-              flex: 6,
-              weight: "bold",
             },
           ],
         },
@@ -90,21 +75,12 @@ export function buildBubble(fileInfo, title) {
           contents: [
             {
               type: "text",
-              text: "🏷️ 類型：",
+              text: "/match <關鍵字> -智能匹配相似內容",
               size: "sm",
               color: "#555451",
               flex: 2,
               weight: "bold",
               margin: "lg",
-            },
-            {
-              type: "text",
-              text: (fileInfo.extension ?? fileInfo.ext)?.toUpperCase(),
-              size: "sm",
-              color: "#555451",
-              wrap: true,
-              flex: 6,
-              weight: "bold",
             },
           ],
         },
@@ -116,38 +92,11 @@ export function buildBubble(fileInfo, title) {
         centerColor: "#fbdc9b",
         startColor: "#ebb156",
       },
-    },
-    footer: {
-      type: "box",
-      layout: "vertical",
-      paddingAll: "xxl",
-      contents: [
-        {
-          type: "button",
-          style: "primary",
-          color: "#3d3d3d",
-          action: {
-            type: "uri",
-            label: "⬇️ 下載檔案",
-            uri: encodeURI(fileInfo.download_url ?? fileInfo.downloadURL),
-          },
-          margin: "none",
-          offsetTop: "none",
-          offsetBottom: "none",
-          offsetStart: "none",
-        },
-      ],
-      paddingTop: "sm",
-      paddingBottom: "xxl",
-      paddingStart: "xxl",
-      paddingEnd: "xxl",
-      background: {
-        type: "linearGradient",
-        angle: "40deg",
-        startColor: "#ebb156",
-        endColor: "#aa802c",
-        centerColor: "#fbdc9b",
-      },
+      offsetTop: "none",
+      offsetBottom: "none",
+      offsetStart: "none",
+      paddingTop: "md",
+      paddingBottom: "xl",
     },
     styles: {
       header: {

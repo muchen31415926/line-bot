@@ -1,5 +1,5 @@
 import { getSourceData, formatSize } from "#utils";
-import { buildBubble } from "#templates";
+import { buildFileBubble } from "#templates";
 import { replyText, replyFlex } from "../services/line_reply_service.js";
 import { runFilePipeline } from "#line_file_pipeline";
 import { handleCommand } from "../services/line_handle_command.js";
@@ -54,6 +54,6 @@ async function handleUploadEvent(event) {
 
   const result = await runFilePipeline(payload);
   const title = "📃 檔案上傳成功";
-  const replyMessage = buildBubble(result, title);
+  const replyMessage = buildFileBubble(result, title);
   await replyFlex(event.replyToken, replyMessage);
 }
