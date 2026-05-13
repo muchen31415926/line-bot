@@ -1,4 +1,4 @@
-export function getSourceData(source) {
+export function extractSourceData(source) {
   const idKey = `${source.type}Id`;
   return {
     sourceType: source.type,
