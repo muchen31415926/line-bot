@@ -1,9 +1,9 @@
 import { initializeApp } from "firebase-admin/app";
 import { getStorage } from "firebase-admin/storage";
 
-import { Config } from "../config.js";
+import { config } from "../config.js";
 
 // Initialize firebase admin sdk (app of name: default)
-initializeApp(Config.firebase);
+initializeApp(config.firebase);
 
 export const bucket = getStorage().bucket();

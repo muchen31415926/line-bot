@@ -1,9 +1,9 @@
 import { messagingApi } from "@line/bot-sdk";
 
-import { Config } from "../config.js";
+import { config } from "../config.js";
 
 export const lineBlobClient = new messagingApi.MessagingApiBlobClient(
-  Config.line,
+  config.line,
 );
 
-export const lineClient = new messagingApi.MessagingApiClient(Config.line);
+export const lineClient = new messagingApi.MessagingApiClient(config.line);

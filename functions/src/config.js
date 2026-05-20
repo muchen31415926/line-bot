@@ -1,6 +1,6 @@
 import { applicationDefault } from "firebase-admin/app";
 
-export const Config = {
+export const config = {
   firebase: {
     credential: applicationDefault(),
     storageBucket: "gs://lineai-a74a2.firebasestorage.app",

@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
 
-import { Config } from "../config.js";
+import { config } from "../config.js";
 
-export const GenAI = new GoogleGenAI(Config.genAi);
+export const GenAI = new GoogleGenAI(config.genAi);
