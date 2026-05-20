@@ -1,9 +1,7 @@
-import { replyText } from "../services/line_reply_service.js";
-import {
-  handleHelpCommand,
-  handleFindCommand,
-  handleMatchCommand,
-} from "#handlers";
+import { replyText } from "../services/line-reply.js";
+import { handleHelpCommand } from "./help.js";
+import { handleFindCommand } from "./find.js";
+import { handleMatchCommand } from "./match.js";
 
 const commandMap = new Map([
   ["/help", handleHelpCommand],
@@ -11,7 +9,7 @@ const commandMap = new Map([
   ["/match", handleMatchCommand],
 ]);
 
-export async function dispatchCommand(event, userText, sourceData) {
+export default async function dispatchCommand(event, userText, sourceData) {
   try {
     const [command, arg] = userText.split(" ");
 

@@ -1,4 +1,4 @@
-import { buildFileBubble } from "./build_file_bubble.js";
+import { buildFileBubble } from "./file-bubble.js";
 
 export function buildFileCarousel(fileInfoList, title) {
   return {

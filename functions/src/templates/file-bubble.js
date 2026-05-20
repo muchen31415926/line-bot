@@ -1,4 +1,4 @@
-import { formatSize } from "#utils";
+import { formatSize } from "../utils.js";
 
 export function buildFileBubble(fileInfo, title) {
   return {

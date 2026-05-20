@@ -1,4 +1,4 @@
-import { bucket } from "../../../lib/client.js";
+import { bucket } from "../../infra/firebase.js";
 
 export function createFileRef(data) {
   const fileRef = bucket.file(data.storagePath);

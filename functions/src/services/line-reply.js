@@ -1,4 +1,4 @@
-import { lineClient } from "../lib/client.js";
+import { lineClient } from "../infra/line.js";
 
 export async function replyText(replyToken, textMessage) {
   return lineClient.replyMessage({

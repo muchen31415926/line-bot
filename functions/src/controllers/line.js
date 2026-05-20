@@ -1,8 +1,8 @@
-import { extractSourceData, formatSize } from "#utils";
+import { extractSourceData, formatSize } from "../utils.js";
 import { buildFileBubble } from "#templates";
-import { replyText, replyFlex } from "../services/line_reply_service.js";
-import { runFilePipeline } from "#line_file_pipeline";
-import { dispatchCommand as dispatchCommand } from "../commands/dispatcher.js";
+import { replyText, replyFlex } from "../services/line-reply.js";
+import runFilePipeline from "#line-file-pipeline";
+import dispatchCommand from "../commands/dispatcher.js";
 
 const ALLOWED_UPLOAD_GCS_TYPES = ["image", "video", "audio", "file"];
 

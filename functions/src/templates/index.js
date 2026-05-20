@@ -1,3 +1,3 @@
-export { buildFileBubble } from "./build_file_bubble.js";
-export { buildFileCarousel } from "./build_file_carousel.js";
-export { buildHelpMenu } from "./build_help_menu.js";
+export { buildFileBubble } from "./file-bubble.js";
+export { buildFileCarousel } from "./file-carousel.js";
+export { buildHelpMenu } from "./help-menu.js";

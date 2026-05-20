@@ -1,6 +1,5 @@
-import { supabase, GenAI } from "../../lib/client.js";
-import { replyText, replyFlex } from "../../services/line_reply_service.js";
-import { matchFiles } from "../../services/line_file_service.js";
+import { replyText, replyFlex } from "../services/line-reply.js";
+import { matchFiles } from "../repositories/line-file.js";
 import { buildFileBubble, buildFileCarousel } from "#templates";
 
 export async function handleMatchCommand(event, arg, sourceData) {

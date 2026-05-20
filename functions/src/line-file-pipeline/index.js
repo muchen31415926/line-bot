@@ -26,10 +26,15 @@ const steps = [
   saveInDB,
 ];
 
-export async function runFilePipeline(payload) {
+export default async function runFilePipeline(payload) {
   let context = payload;
-  for (const step of steps) {
-    context = await step(context);
+  try {
+    for (const step of steps) {
+      context = await step(context);
+    }
+  } catch (error) {
+    console.error("Error occurred while running file pipeline:", error);
+    throw error;
   }
 
   return context;

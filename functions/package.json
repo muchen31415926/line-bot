@@ -3,13 +3,9 @@
   "description": "Cloud Functions for Firebase",
   "type": "module",
   "imports": {
-    "#handlers": "./src/commands/handlers/index.js",
     "#templates": "./src/templates/index.js",
-    "#routes": "./src/routes/index.js",
-    "#config": "./src/config/index.js",
-    "#utils": "./src/utils/index.js",
-    "#line_file_pipeline": "./src/services/line_file_pipeline/index.js",
-    "#steps": "./src/services/line_file_pipeline/steps/index.js"
+    "#line-file-pipeline": "./src/line-file-pipeline/index.js",
+    "#steps": "./src/line-file-pipeline/steps/index.js"
   },
   "scripts": {
     "serve": "firebase emulators:start --only functions",
@@ -22,7 +18,7 @@
   "engines": {
     "node": "24"
   },
-  "main": "src/index.js",
+  "main": "src/app.js",
   "dependencies": {
     "@google/genai": "^1.46.0",
     "@line/bot-sdk": "^10.6.0",

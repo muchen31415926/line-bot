@@ -1,8 +1,8 @@
 import express from "express";
 import { middleware } from "@line/bot-sdk";
 
-import { Config } from "#config";
-import { handleWebhook } from "../controllers/line_cotroller.js";
+import { Config } from "../config.js";
+import { handleWebhook } from "../controllers/line.js";
 
 const lineFileAssistantRouter = express.Router();
 

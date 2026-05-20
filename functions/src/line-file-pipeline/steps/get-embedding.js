@@ -1,4 +1,4 @@
-import { GenAI } from "../../../lib/client.js";
+import { GenAI } from "../../infra/genai.js";
 
 export async function getEmbedding(data) {
   const res = await GenAI.models.embedContent({

@@ -1,4 +1,5 @@
-import { supabase, GenAI } from "../lib/client.js";
+import { supabase } from "../infra/supabase.js";
+import { GenAI } from "../infra/genai.js";
 
 export async function findFiles(arg, sourceData) {
   const { data, error } = await supabase

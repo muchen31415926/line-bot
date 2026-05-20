@@ -2,7 +2,7 @@ import "dotenv/config";
 
 import { onRequest } from "firebase-functions/v2/https";
 import express from "express";
-import { lineFileAssistantRouter } from "#routes";
+import { lineFileAssistantRouter } from "./routes/line-file-assistant.js";
 
 const app = express();
 
